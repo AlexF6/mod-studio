@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ModCraft Studio - Editor de Assets para Mods</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Three.js & OrbitControls for 3D Minecraft Model Viewer -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <!-- Top App Navigation -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon"><i data-lucide="sparkles"></i></span>
+        <span class="logo-title">ModCraft <strong>Studio</strong></span>
+      </div>
+      <div class="mod-selector-wrapper">
+        <label for="modSelect">Mod:</label>
+        <select id="modSelect" class="mod-select">
+          <option value="">Cargando mods...</option>
+        </select>
+        <button id="refreshModsBtn" class="btn-icon" title="Recargar lista de mods"><i data-lucide="rotate-cw"></i></button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="textures">
+        <span class="tab-icon"><i data-lucide="palette"></i></span> Texturas & Pixel Art
+      </button>
+      <button class="nav-tab" data-tab="langs">
+        <span class="tab-icon"><i data-lucide="languages"></i></span> Idiomas (Lang)
+      </button>
+      <button class="nav-tab" data-tab="recipes">
+        <span class="tab-icon"><i data-lucide="anvil"></i></span> Recetas 3x3
+      </button>
+      <button class="nav-tab" data-tab="models">
+        <span class="tab-icon"><i data-lucide="box"></i></span> Modelos & JSON
+      </button>
+      <button class="nav-tab" data-tab="explorer">
+        <span class="tab-icon"><i data-lucide="folder-tree"></i></span> Explorador
+      </button>
+    </nav>
+
+    <!-- Header Actions -->
+    <div class="header-right">
+      <span id="saveStatus" class="save-status">Listo</span>
+      <button id="globalSaveBtn" class="btn btn-primary" title="Guardar cambios (Ctrl+S)">
+        <i data-lucide="save"></i><span>Guardar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="app-main">
+    <!-- ==================== TAB 1: TEXTURES & PIXEL ART ==================== -->
+    <section id="tab-textures" class="tab-panel active">
+      <aside class="panel-sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-header-top">
+            <h3>Texturas del Mod</h3>
+            <span id="textureTotalCount" class="badge-count">0</span>
+          </div>
+          <div class="search-wrapper">
+            <input type="text" id="textureSearch" class="input-search" placeholder="Buscar textura (ej: motorcycle)..." />
+            <button id="btnClearTextureSearch" class="btn-clear-search" title="Limpiar búsqueda" style="display:none;"><i data-lucide="x"></i></button>
+          </div>
+          <div class="filter-chips" id="textureCategoryFilters">
+            <button class="filter-chip active" data-cat="all">Todos <span class="chip-count" id="countCatAll">0</span></button>
+            <button class="filter-chip" data-cat="item">Ítems <span class="chip-count" id="countCatItems">0</span></button>
+            <button class="filter-chip" data-cat="entity">3D Entidad <span class="chip-count" id="countCatEntities">0</span></button>
+            <button class="filter-chip" data-cat="other">Otros <span class="chip-count" id="countCatOthers">0</span></button>
+          </div>
+        </div>
+        <div id="textureList" class="asset-list">
+          <div class="empty-hint">Cargando texturas...</div>
+        </div>
+        <div class="sidebar-footer">
+          <button id="btnNewTexture" class="btn btn-secondary btn-block"><i data-lucide="plus"></i><span>Nueva Textura</span></button>
+        </div>
+      </aside>
+
+      <section class="panel-canvas-workspace">
+        <!-- Canvas Top Toolbar -->
+        <div class="canvas-toolbar">
+          <div class="tool-group" id="drawingToolsGroup">
+            <button class="tool-btn draw-tool active" data-tool="pen" title="Lápiz (P)"><i data-lucide="pencil"></i></button>
+            <button class="tool-btn draw-tool" data-tool="eraser" title="Borrador (E)"><i data-lucide="eraser"></i></button>
+            <button class="tool-btn draw-tool" data-tool="picker" title="Gotero / Pipeta (I)"><i data-lucide="pipette"></i></button>
+            <button class="tool-btn draw-tool" data-tool="bucket" title="Relleno de bote (G)"><i data-lucide="paint-bucket"></i></button>
+            <button class="tool-btn draw-tool" data-tool="lighten" title="Aclarar píxel (Dodge)"><i data-lucide="sun"></i></button>
+            <button class="tool-btn draw-tool" data-tool="darken" title="Oscurecer píxel (Burn)"><i data-lucide="moon"></i></button>
+            <button class="tool-btn draw-tool" data-tool="pan" title="Mover lienzo (Espacio + Arrastrar o Clic Central)"><i data-lucide="hand"></i></button>
+          </div>
+
+          <div class="tool-group">
+            <label class="toolbar-label">Grosor:</label>
+            <select id="brushSize" class="select-compact">
+              <option value="1">1 px</option>
+              <option value="2">2 px</option>
+              <option value="3">3 px</option>
+              <option value="5">5 px</option>
+            </select>
+          </div>
+
+          <div class="tool-group">
+            <button id="btnUndo" class="tool-btn action-tool" title="Deshacer (Ctrl+Z)"><i data-lucide="undo-2"></i></button>
+            <button id="btnRedo" class="tool-btn action-tool" title="Rehacer (Ctrl+Y)"><i data-lucide="redo-2"></i></button>
+            <label class="checkbox-inline" title="Mostrar cuadrícula de píxeles">
+              <input type="checkbox" id="toggleGrid" checked /><i data-lucide="grid-3x3"></i><span>Cuadrícula</span>
+            </label>
+            <label class="checkbox-inline" title="Mostrar mapa de regiones UV del modelo 3D sobre el lienzo 2D">
+              <input type="checkbox" id="toggleUVGuide" checked /><i data-lucide="scan"></i><span>Guía UV</span>
+            </label>
+          </div>
+
+          <div class="tool-group zoom-group">
+            <button id="btnZoomOut" class="tool-btn-icon" title="Alejar (-)"><i data-lucide="minus"></i></button>
+            <span id="zoomLevel">4x</span>
+            <button id="btnZoomIn" class="tool-btn-icon" title="Acercar (+)"><i data-lucide="plus"></i></button>
+            <button id="btnZoomReset" class="tool-btn-icon" title="Ajustar al tamaño de ventana"><i data-lucide="maximize"></i></button>
+          </div>
+
+          <div class="tool-group file-info-group">
+            <span id="currentTextureName" class="file-badge">Ninguna seleccionada</span>
+            <span id="currentTextureDim" class="dim-badge">- x -</span>
+            <span id="canvasCoords" class="coords-badge">X: - | Y: -</span>
+          </div>
+
+          <div class="tool-group" style="margin-left: auto; border-right: none;">
+            <button id="btnToggle3D" class="tool-btn btn-highlight" title="Alternar Visor 3D del Modelo (M)">
+              <i data-lucide="box"></i><span>Modelo 3D</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Viewport with Pan & Zoom -->
+        <div class="canvas-viewport" id="canvasViewport">
+          <div class="canvas-wrapper" id="canvasWrapper">
+            <canvas id="pixelCanvas"></canvas>
+            <canvas id="gridCanvas"></canvas>
+            <canvas id="overlayCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Canvas Bottom Status / Secondary Layer Preview -->
+        <div class="canvas-bottom-bar">
+          <div class="overlay-controls">
+            <label class="checkbox-inline">
+              <input type="checkbox" id="toggleTrimOverlay" /> Previsualizar Capa Trim / Armor
+            </label>
+            <select id="trimSelect" class="select-compact" style="display:none;">
+              <option value="">Seleccionar overlay...</option>
+            </select>
+          </div>
+          <div class="action-buttons">
+            <button id="btnExportPng" class="btn btn-secondary"><i data-lucide="download"></i><span>Descargar PNG</span></button>
+            <button id="btnSaveTexture" class="btn btn-primary"><i data-lucide="save"></i><span>Guardar en Mod</span></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3D Minecraft Model Viewport Panel (Collapsible / Resizable Split View) -->
+      <section id="panel3DViewport" class="panel-3d-viewport" style="display: none;">
+        <div id="resizer3D" class="resizer-3d" title="Arrastra para redimensionar el panel 3D"></div>
+
+        <!-- 3D Top Bar: Model Selection & Main Controls -->
+        <div class="viewport-3d-header">
+          <div class="header-title-3d">
+            <span class="icon-3d"><i data-lucide="box"></i></span>
+            <strong>Visor 3D</strong>
+            <select id="select3DModelOverride" class="select-compact" title="Cambiar modelo 3D">
+              <option value="auto">Auto (Según textura)</option>
+              <option value="motorcycle">Moto (XTZ 125)</option>
+              <option value="car">Carro (Yipao)</option>
+              <option value="motocarro">Motocarro (Torito)</option>
+              <option value="item">Ítem 3D Extruido</option>
+            </select>
+          </div>
+          <div class="viewport-3d-controls">
+            <select id="select3DLayers" class="select-compact" title="Filtrar capas del modelo">
+              <option value="both">Body + Trim</option>
+              <option value="body">Solo Body (Tintable)</option>
+              <option value="trim">Solo Trim (Chasis/Detalles)</option>
+            </select>
+            <input type="color" id="color3DVehicleTint" value="#1846C7" title="Color de tinte de la carrocería (Body)" />
+            <button id="btnExpand3D" class="tool-btn-icon" title="Ampliar / Reducir panel 3D"><i data-lucide="maximize-2"></i></button>
+            <button id="btnSnapshot3D" class="tool-btn-icon" title="Guardar captura PNG del modelo 3D"><i data-lucide="camera"></i></button>
+            <button id="btnClose3DViewport" class="tool-btn-icon" title="Cerrar visor 3D"><i data-lucide="x"></i></button>
+          </div>
+        </div>
+
+        <!-- 3D Sub-Toolbar: Interaction Mode & Quick Camera Presets -->
+        <div class="viewport-3d-subbar">
+          <div class="mode-3d-pills" title="Modo al hacer clic sobre el modelo 3D">
+            <button class="mode-3d-btn active" data-mode3d="orbit" title="Arrastrar para rotar cámara, clic derecho para mover"><i data-lucide="rotate-3d"></i><span>Orbitar</span></button>
+            <button class="mode-3d-btn" data-mode3d="pick_uv" title="Haz clic en una pieza 3D para enfocar su textura en el lienzo 2D"><i data-lucide="crosshair"></i><span>Enfocar UV</span></button>
+            <button class="mode-3d-btn" data-mode3d="paint" title="Pintar o usar gotero directamente sobre el modelo 3D"><i data-lucide="brush"></i><span>Pintar 3D</span></button>
+          </div>
+          <div class="cam-presets-group">
+            <button class="cam-btn" data-cam="iso" title="Vista Isométrica">Iso</button>
+            <button class="cam-btn" data-cam="front" title="Vista Frontal (-Z)">Frente</button>
+            <button class="cam-btn" data-cam="back" title="Vista Trasera (+Z)">Atrás</button>
+            <button class="cam-btn" data-cam="left" title="Vista Lateral Izquierda">Izq</button>
+            <button class="cam-btn" data-cam="right" title="Vista Lateral Derecha">Der</button>
+            <button class="cam-btn" data-cam="top" title="Vista Superior">Arriba</button>
+          </div>
+        </div>
+
+        <!-- 3D WebGL Container -->
+        <div id="container3DCanvas" class="container-3d-canvas">
+          <div id="hover3DPartBadge" class="hover-3d-badge">Pasa el cursor sobre el modelo...</div>
+          <div class="viewport-3d-hint">Clic Izq: Rotar/Acción • Clic Der o Central: Mover • Rueda: Zoom</div>
+        </div>
+
+        <!-- 3D Bottom Controls: Visual Options & Live Kinematics -->
+        <div class="viewport-3d-footer">
+          <div class="footer-3d-row">
+            <label class="checkbox-inline" title="Rotar automáticamente el modelo">
+              <input type="checkbox" id="check3DAutoRotate" /><i data-lucide="refresh-cw"></i><span>Girar</span>
+            </label>
+            <label class="checkbox-inline" title="Mostrar bordes de los cuboides">
+              <input type="checkbox" id="check3DWireframe" /><i data-lucide="grid"></i><span>Bordes</span>
+            </label>
+            <label class="checkbox-inline" title="Recortar píxeles transparentes (ej. radios de ruedas)">
+              <input type="checkbox" id="check3DAlphaCutout" checked /><i data-lucide="scissors"></i><span>Transparencia</span>
+            </label>
+            <label class="checkbox-inline" title="Mostrar bloque de escala 1x1x1 de Minecraft (16x16x16 px)">
+              <input type="checkbox" id="check3DScaleBlock" /><i data-lucide="box"></i><span>Bloque 1m</span>
+            </label>
+            <label class="checkbox-inline" title="Animar giro de las ruedas">
+              <input type="checkbox" id="check3DSpinWheels" /><i data-lucide="disc"></i><span>Rodar</span>
+            </label>
+          </div>
+          <div class="footer-3d-row kinematics-row">
+            <div class="kinematic-slider">
+              <span>Dirección:</span>
+              <input type="range" id="slider3DSteer" min="-35" max="35" value="0" />
+              <span id="val3DSteer">0°</span>
+            </div>
+            <div class="kinematic-slider">
+              <span>Inclinación:</span>
+              <input type="range" id="slider3DLean" min="-25" max="25" value="0" />
+              <span id="val3DLean">0°</span>
+            </div>
+            <button id="btnReset3DPose" class="btn btn-secondary btn-sm" title="Restablecer dirección, inclinación y cámara"><i data-lucide="rotate-ccw"></i><span>Reset</span></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Palette Sidebar -->
+      <aside class="panel-palette">
+        <h3>Paleta de Color</h3>
+        <div class="color-picker-box">
+          <input type="color" id="primaryColor" value="#ff3e3e" />
+          <div class="color-details">
+            <div class="hex-input-wrapper">
+              <span>HEX:</span>
+              <input type="text" id="hexInput" value="#FF3E3E" maxlength="7" />
+            </div>
+            <div class="alpha-slider-wrapper">
+              <span>Opacidad:</span>
+              <input type="range" id="alphaSlider" min="0" max="255" value="255" />
+              <span id="alphaValue">100%</span>
+            </div>
+          </div>
+        </div>
+
+        <h4>Colores Recientes</h4>
+        <div id="recentColors" class="palette-swatches"></div>
+
+        <h4>Paleta Minecraft Clásica</h4>
+        <div id="minecraftPalette" class="palette-swatches"></div>
+
+        <h4>Paleta de esta Textura</h4>
+        <div id="imagePalette" class="palette-swatches"></div>
+      </aside>
+    </section>
+
+    <!-- ==================== TAB 2: LOCALIZATION / LANG ==================== -->
+    <section id="tab-langs" class="tab-panel">
+      <div class="lang-studio-container">
+        <div class="sub-header">
+          <div class="sub-header-left">
+            <h2>Gestor de Idiomas (Localización)</h2>
+            <p class="subtitle">Sincroniza y edita los archivos <code>lang/*.json</code> simultáneamente.</p>
+          </div>
+          <div class="sub-header-actions">
+            <input type="text" id="langSearch" class="input-search" placeholder="Filtrar claves o traducciones..." />
+            <label class="checkbox-inline">
+              <input type="checkbox" id="filterMissingOnly" /> Mostrar solo incompletas
+            </label>
+            <button id="btnAddLangKey" class="btn btn-secondary"><i data-lucide="plus"></i><span>Nueva Clave</span></button>
+            <button id="btnAddLangCode" class="btn btn-secondary"><i data-lucide="globe"></i><span>Añadir Idioma</span></button>
+            <button id="btnSaveLangs" class="btn btn-primary"><i data-lucide="save"></i><span>Guardar Idiomas</span></button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="lang-table" id="langTable">
+            <thead id="langTableHead">
+              <!-- Dynamically populated headers (Clave, en_us, es_es, etc.) -->
+            </thead>
+            <tbody id="langTableBody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: VISUAL RECIPE DESIGNER ==================== -->
+    <section id="tab-recipes" class="tab-panel">
+      <aside class="panel-sidebar">
+        <div class="sidebar-header">
+          <h3>Recetas del Mod</h3>
+          <input type="text" id="recipeSearch" class="input-search" placeholder="Buscar receta..." />
+        </div>
+        <div id="recipeList" class="asset-list">
+          <div class="empty-hint">Cargando recetas...</div>
+        </div>
+        <div class="sidebar-footer">
+          <button id="btnNewRecipe" class="btn btn-secondary btn-block"><i data-lucide="plus"></i><span>Nueva Receta</span></button>
+        </div>
+      </aside>
+
+      <section class="recipe-workspace">
+        <div class="recipe-meta-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>ID de Receta:</label>
+              <input type="text" id="recipeIdInput" placeholder="ej: car_crafting" />
+            </div>
+            <div class="form-group">
+              <label>Tipo:</label>
+              <select id="recipeTypeSelect">
+                <option value="minecraft:crafting_shaped">Crafteo con Forma (Shaped)</option>
+                <option value="minecraft:crafting_shapeless">Crafteo sin Forma (Shapeless)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Categoría:</label>
+              <select id="recipeCategorySelect">
+                <option value="equipment">Equipment</option>
+                <option value="misc">Misc</option>
+                <option value="building">Building</option>
+                <option value="redstone">Redstone</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="recipe-interactive-area">
+          <!-- Crafting Grid 3x3 -->
+          <div class="crafting-bench-card">
+            <h4>Mesa de Crafteo 3x3</h4>
+            <div class="crafting-layout">
+              <div class="grid-3x3" id="craftingGrid">
+                <!-- 9 slots (0..8) -->
+                <div class="craft-slot" data-slot="0"></div>
+                <div class="craft-slot" data-slot="1"></div>
+                <div class="craft-slot" data-slot="2"></div>
+                <div class="craft-slot" data-slot="3"></div>
+                <div class="craft-slot" data-slot="4"></div>
+                <div class="craft-slot" data-slot="5"></div>
+                <div class="craft-slot" data-slot="6"></div>
+                <div class="craft-slot" data-slot="7"></div>
+                <div class="craft-slot" data-slot="8"></div>
+              </div>
+
+              <div class="craft-arrow">➔</div>
+
+              <div class="craft-result-box">
+                <label>Resultado:</label>
+                <div class="craft-slot result-slot" id="resultSlot"></div>
+                <div class="count-control">
+                  <span>Cantidad:</span>
+                  <input type="number" id="resultCountInput" value="1" min="1" max="64" />
+                </div>
+              </div>
+            </div>
+
+            <div class="grid-actions">
+              <button id="btnClearGrid" class="btn btn-secondary btn-sm">Limpiar Mesa</button>
+              <button id="btnSaveCurrentRecipe" class="btn btn-primary"><i data-lucide="save"></i><span>Guardar Receta</span></button>
+            </div>
+          </div>
+
+          <!-- Items Palette -->
+          <div class="item-palette-card">
+            <h4>Catálogo de Ítems</h4>
+            <input type="text" id="itemPaletteFilter" class="input-search" placeholder="Buscar ítem para colocar..." />
+            <div class="palette-categories">
+              <button class="cat-pill active" data-cat="mod">Ítems del Mod</button>
+              <button class="cat-pill" data-cat="vanilla">Comunes de Minecraft</button>
+            </div>
+            <div id="itemsPaletteContainer" class="items-grid"></div>
+            <div class="custom-item-row">
+              <input type="text" id="customItemInput" placeholder="minecraft:iron_ingot o garage:car" />
+              <button id="btnUseCustomItem" class="btn btn-secondary">Seleccionar</button>
+            </div>
+            <div class="selected-item-info">
+              Ítem seleccionado: <strong id="activeItemBadge">minecraft:iron_ingot</strong>
+              <small>(Haz clic en cualquier casilla de la mesa para asignarlo, o clic derecho para borrar)</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recipe JSON Code Preview -->
+        <div class="recipe-json-preview">
+          <div class="json-header">
+            <span>JSON Generado (Minecraft 1.21+)</span>
+            <button id="btnCopyRecipeJson" class="btn btn-secondary btn-sm"><i data-lucide="copy"></i><span>Copiar JSON</span></button>
+          </div>
+          <pre id="recipeJsonPreview"><code>{}</code></pre>
+        </div>
+      </section>
+    </section>
+
+    <!-- ==================== TAB 4: MODELS & ITEMS JSON ==================== -->
+    <section id="tab-models" class="tab-panel">
+      <aside class="panel-sidebar">
+        <div class="sidebar-header">
+          <h3>Modelos & Items</h3>
+          <input type="text" id="modelsSearch" class="input-search" placeholder="Buscar archivo..." />
+        </div>
+        <div id="modelsList" class="asset-list">
+          <div class="empty-hint">Cargando modelos...</div>
+        </div>
+      </aside>
+
+      <section class="models-workspace">
+        <div class="models-toolbar">
+          <div class="file-info-group">
+            <span id="activeModelPath" class="file-badge">Ningún modelo abierto</span>
+          </div>
+          <div class="action-buttons">
+            <button id="btnFormatJson" class="btn btn-secondary"><i data-lucide="align-left"></i><span>Formatear JSON</span></button>
+            <button id="btnValidateJson" class="btn btn-secondary"><i data-lucide="check"></i><span>Validar</span></button>
+            <button id="btnSaveModelJson" class="btn btn-primary"><i data-lucide="save"></i><span>Guardar Modelo</span></button>
+          </div>
+        </div>
+
+        <div class="model-editor-columns">
+          <!-- Visual Inspector Form for 2D Item Models -->
+          <div class="model-visual-form" id="modelVisualForm">
+            <h4>Configurador Visual de Item Model</h4>
+            <div class="form-group">
+              <label>Parent Model:</label>
+              <input type="text" id="modelParentInput" placeholder="minecraft:item/generated" />
+            </div>
+
+            <div class="textures-layer-group">
+              <label>Capas de Textura (Layers):</label>
+              <div class="layer-field">
+                <span>layer0 (Base):</span>
+                <input type="text" id="layer0Input" placeholder="garage:item/car" />
+              </div>
+              <div class="layer-field">
+                <span>layer1 (Trim/Overlay):</span>
+                <input type="text" id="layer1Input" placeholder="garage:item/car_trim" />
+              </div>
+              <div class="layer-field">
+                <span>layer2:</span>
+                <input type="text" id="layer2Input" placeholder="(opcional)" />
+              </div>
+            </div>
+
+            <!-- Composite preview of layer0 + layer1 -->
+            <div class="composite-preview-box">
+              <label>Previsualización Combinada:</label>
+              <div class="composite-canvas-wrap">
+                <canvas id="compositeCanvas" width="128" height="128"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Code Editor -->
+          <div class="model-code-editor">
+            <h4>Editor JSON Directo</h4>
+            <textarea id="modelJsonEditor" spellcheck="false" placeholder="Contenido JSON..."></textarea>
+            <div id="jsonValidationMsg" class="validation-msg"></div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <!-- ==================== TAB 5: FILE EXPLORER ==================== -->
+    <section id="tab-explorer" class="tab-panel">
+      <aside class="panel-sidebar">
+        <div class="sidebar-header">
+          <h3>Archivos de Recursos</h3>
+          <div class="filter-pills">
+            <button class="pill active" data-filter="all">Todos</button>
+            <button class="pill" data-filter="texture">Texturas</button>
+            <button class="pill" data-filter="json">JSON</button>
+            <button class="pill" data-filter="lang">Lang</button>
+            <button class="pill" data-filter="recipe">Recetas</button>
+          </div>
+        </div>
+        <div id="explorerTree" class="tree-view"></div>
+        <div class="sidebar-footer">
+          <button id="btnExplorerNewFile" class="btn btn-secondary btn-block"><i data-lucide="file-plus"></i><span>Nuevo Archivo</span></button>
+        </div>
+      </aside>
+
+      <section class="explorer-content">
+        <div class="explorer-toolbar">
+          <span id="explorerActiveFile" class="file-badge">Selecciona un archivo del árbol</span>
+          <div class="action-buttons">
+            <button id="btnExplorerDelete" class="btn btn-danger" style="display:none;"><i data-lucide="trash-2"></i><span>Eliminar</span></button>
+            <button id="btnExplorerSave" class="btn btn-primary" style="display:none;"><i data-lucide="save"></i><span>Guardar</span></button>
+          </div>
+        </div>
+
+        <div id="explorerPreview" class="explorer-preview-box">
+          <div class="empty-hint">Selecciona un archivo a la izquierda para verlo o editarlo.</div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <!-- Modals -->
+  <!-- New File Modal -->
+  <div id="modalNewFile" class="modal-backdrop" style="display:none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modalTitle">Nuevo Archivo de Recurso</h3>
+        <button class="modal-close" id="btnCloseModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Ruta relativa dentro de <code>src/main/resources/</code>:</label>
+          <input type="text" id="newFilePathInput" placeholder="assets/garage/textures/item/nueva_textura.png" />
+        </div>
+        <div class="form-group">
+          <label>Plantilla inicial:</label>
+          <select id="newFileTemplateSelect">
+            <option value="texture16">Textura vacía 16x16 (PNG transparente)</option>
+            <option value="texture32">Textura vacía 32x32 (PNG transparente)</option>
+            <option value="itemModel">Item Model JSON estándar</option>
+            <option value="recipe">Receta Crafting JSON</option>
+            <option value="empty">Archivo en blanco</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCancelModal" class="btn btn-secondary">Cancelar</button>
+        <button id="btnConfirmCreateFile" class="btn btn-primary">Crear Archivo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="models3d.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+
