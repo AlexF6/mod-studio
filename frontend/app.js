@@ -1047,15 +1047,16 @@
     threeScene = new THREE.Scene();
     threeScene.background = new THREE.Color(0x13151b);
 
-    // Camera
-    threeCamera = new THREE.PerspectiveCamera(40, w / h, 0.1, 1000);
+    // Camera (adjusted near/far for optimal depth precision)
+    threeCamera = new THREE.PerspectiveCamera(40, w / h, 0.5, 500);
     reset3DCamera();
 
-    // WebGL Renderer with pixelated canvas texture support
+    // WebGL Renderer with pixelated canvas texture support and logarithmic depth buffer
     threeRenderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
-      preserveDrawingBuffer: true
+      preserveDrawingBuffer: true,
+      logarithmicDepthBuffer: true
     });
     threeRenderer.setSize(w, h);
     threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -1287,10 +1288,12 @@
       color: new THREE.Color(tintColor),
       roughness: 0.65,
       metalness: 0.15,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
       wireframe: wireframe,
-      transparent: alphaCutout,
-      alphaTest: alphaCutout ? 0.05 : 0.0
+      transparent: false,
+      alphaTest: alphaCutout ? 0.1 : 0.0,
+      depthWrite: true,
+      depthTest: true
     });
 
     const trimMaterial = new THREE.MeshStandardMaterial({
@@ -1298,10 +1301,15 @@
       color: 0xffffff,
       roughness: 0.55,
       metalness: 0.25,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
       wireframe: wireframe,
-      transparent: alphaCutout,
-      alphaTest: alphaCutout ? 0.05 : 0.0
+      transparent: false,
+      alphaTest: alphaCutout ? 0.1 : 0.0,
+      depthWrite: true,
+      depthTest: true,
+      polygonOffset: true,
+      polygonOffsetFactor: -1.0,
+      polygonOffsetUnits: -2.0
     });
 
     threeBodyGroup = new THREE.Group();
@@ -1346,12 +1354,18 @@
       // Cubes
       (p.cubes || []).forEach((c, cIdx) => {
         let [x, y, z, dx, dy, dz] = c.box;
+        const isPlane = dx <= 0 || dy <= 0 || dz <= 0;
         if (dx <= 0) dx = 0.08;
         if (dy <= 0) dy = 0.08;
         if (dz <= 0) dz = 0.08;
 
         const geom = createMinecraftBoxGeometry(dx, dy, dz, c.u, c.v, texW, texH);
-        const mesh = new THREE.Mesh(geom, material);
+        let meshMat = material;
+        if (isPlane) {
+          meshMat = material.clone();
+          meshMat.side = THREE.DoubleSide;
+        }
+        const mesh = new THREE.Mesh(geom, meshMat);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
 
@@ -1454,8 +1468,10 @@
       threeModelGroup.traverse((child) => {
         if (child.isMesh && child.material) {
           child.material.wireframe = wireframe;
-          child.material.transparent = alphaCutout;
-          child.material.alphaTest = alphaCutout ? 0.05 : 0.0;
+          child.material.transparent = false;
+          child.material.alphaTest = alphaCutout ? 0.1 : 0.0;
+          child.material.depthWrite = true;
+          child.material.depthTest = true;
           child.material.needsUpdate = true;
         }
       });
